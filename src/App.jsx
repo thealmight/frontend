@@ -5,6 +5,9 @@ import OperatorDashboard from './pages/OperatorDashboard';
 import PlayerDashboard from './pages/PlayerDashboard';
 
 function App() {
+  console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+console.log('Socket URL:', import.meta.env.VITE_SOCKET_URL);
+
   return (
     <GameProvider>
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -15,6 +18,7 @@ function App() {
           {/* 🧭 Dashboards */}
           <Route path="/operator" element={<OperatorDashboard />} />
           <Route path="/player" element={<PlayerDashboard />} />
+          
         </Routes>
       </Router>
     </GameProvider>
