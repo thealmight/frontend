@@ -97,7 +97,7 @@ export default function OperatorDashboard() {
 
       return () => clearTimeout(timer);
     }
-  }, [timeLeft, gameStatus, isGameEnded, currentRound, rounds, handleNextRound]);
+  }, [timeLeft, gameStatus, isGameEnded, currentRound, rounds]);
 
   // 🕒 Format time
   const formatTime = (seconds) => {
@@ -228,7 +228,7 @@ export default function OperatorDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
@@ -238,7 +238,7 @@ export default function OperatorDashboard() {
           </div>
           <button
             onClick={logout}
-            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition"
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition duration-200"
           >
             Logout
           </button>
@@ -293,26 +293,26 @@ export default function OperatorDashboard() {
               <button
                 onClick={handleCreateGame}
                 disabled={loading}
-                className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition disabled:opacity-50"
+                className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition duration-200 disabled:opacity-50"
               >
                 {loading ? 'Creating...' : 'Create Game'}
               </button>
             </div>
           ) : gameStatus === 'waiting' ? (
-                       <div>
+            <div>
               <p className="text-green-700 font-medium mb-4">Game Created - ID: {gameId}</p>
               <p className="text-gray-700 mb-4">Total Rounds: {rounds}</p>
               <button
                 onClick={handleStartGame}
                 disabled={loading || onlinePlayers.length < 5}
-                className="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700 transition disabled:opacity-50 mr-3"
+                className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded mr-3 transition duration-200 disabled:opacity-50"
               >
                 {loading ? 'Starting...' : 'Start Game'}
               </button>
               <button
                 onClick={handleResetGame}
                 disabled={loading}
-                className="bg-yellow-600 text-white py-2 px-4 rounded hover:bg-yellow-700 transition disabled:opacity-50"
+                className="bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded transition duration-200 disabled:opacity-50"
               >
                 Reset Game
               </button>
@@ -329,7 +329,7 @@ export default function OperatorDashboard() {
                   <button
                     onClick={handleNextRound}
                     disabled={loading}
-                    className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition disabled:opacity-50"
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded transition duration-200 disabled:opacity-50"
                   >
                     {timeLeft === 0 ? 'Start Next Round' : 'Finish Round Early'}
                   </button>
@@ -337,7 +337,7 @@ export default function OperatorDashboard() {
                 <button
                   onClick={handleEndGame}
                   disabled={loading}
-                  className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition disabled:opacity-50"
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition duration-200 disabled:opacity-50"
                 >
                   End Game
                 </button>
@@ -349,13 +349,13 @@ export default function OperatorDashboard() {
               <button
                 onClick={handleResetGame}
                 disabled={loading}
-                className="bg-yellow-600 text-white py-2 px-4 rounded hover:bg-yellow-700 transition disabled:opacity-50 mr-3"
+                className="bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded mr-3 transition duration-200 disabled:opacity-50"
               >
                 Reset Game
               </button>
               <button
                 onClick={exportTariffHistory}
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition duration-200"
               >
                 Export Tariff History
               </button>
@@ -490,7 +490,7 @@ export default function OperatorDashboard() {
               <h2 className="text-xl font-semibold">Tariff Submission History</h2>
               <button
                 onClick={exportTariffHistory}
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition duration-200"
               >
                 Export CSV
               </button>
@@ -517,7 +517,7 @@ export default function OperatorDashboard() {
                       <td className="px-3 py-2 text-xs">
                         {new Date(entry.submittedAt).toLocaleTimeString()}
                       </td>
-                                           {products.map(product => (
+                      {products.map(product => (
                         <td key={product} className="px-3 py-2 text-center">
                           {entry.tariffs[product] !== undefined ? `${entry.tariffs[product]}%` : '-'}
                         </td>
@@ -558,7 +558,7 @@ export default function OperatorDashboard() {
             />
             <button
               type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition duration-200"
             >
               Send
             </button>

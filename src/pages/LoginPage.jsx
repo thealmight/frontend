@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabaseClient';
 import { useGame } from '../context/GameContext';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { setAuthUser } = useGame();
 
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -14,8 +15,8 @@ export default function LoginPage() {
   const handleLogin = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
 
-    if (!username.trim()) {
-      setError('Username is required');
+    if (!email.trim()) {
+      setError('Email is required');
       return;
     }
 
@@ -23,60 +24,143 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/login`, {
+      // Attempt to sign in with Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      // Call our backend login endpoint to create/get user profile
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${data.session.access_token}`,
         },
-        body: JSON.stringify({
-          username: username.trim(),
-          password: password || undefined
-        }),
+        body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+        throw new Error(result.error || 'Failed to login');
       }
 
-      // Store token and user data
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      // Store user data in localStorage
+      localStorage.setItem('token', data.session.access_token);
+      localStorage.setItem('user', JSON.stringify(result.user));
 
       // Update context state
-      setAuthUser(data.user);
+      setAuthUser(result.user);
 
       // Navigate based on role
-      if (data.user.role === 'operator') {
+      if (result.user.role === 'operator') {
         navigate('/operator');
       } else {
         navigate('/player');
       }
-    } catch (error) {
-      setError(error.message || 'Login failed. Please try again.');
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(err.message || 'Failed to login. Please check your credentials and try again.');
     } finally {
       setLoading(false);
     }
   };
 
   // Quick login with auto-submit
-  const handleQuickLogin = (userType) => {
-    let quickUsername;
-    if (userType === 'operator') {
-      quickUsername = 'pavan';
-    } else {
-      const playerNames = ['player1', 'player2', 'player3', 'player4', 'player5'];
-      quickUsername = playerNames[Math.floor(Math.random() * playerNames.length)];
+  const handleQuickLogin = async (userType) => {
+    setLoading(true);
+    setError('');
+
+    try {
+      let email, pwd;
+      if (userType === 'operator') {
+        email = 'pavan@example.com';
+        pwd = 'password123';
+      } else {
+        email = `player${Math.floor(Math.random() * 10000)}@example.com`;
+        pwd = 'password123';
+      }
+
+      // Attempt to sign in with Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password: pwd,
+      });
+
+      if (error) {
+        // If user doesn't exist, create them
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password: pwd,
+          options: {
+            data: {
+              username: userType === 'operator' ? 'pavan' : email.split('@')[0],
+            },
+          },
+        });
+
+        if (signUpError) {
+          // If sign up fails, try to sign in again (user might already exist)
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password: pwd,
+          });
+
+          if (signInError) throw signInError;
+          data.session = signInData.session;
+        } else {
+          // Wait a bit for the user to be created in the database
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Try to sign in again
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password: pwd,
+          });
+
+          if (signInError) throw signInError;
+          data.session = signInData.session;
+        }
+      }
+
+      // Call our backend login endpoint to create/get user profile
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${data.session.access_token}`,
+        },
+        body: JSON.stringify({ email, password: pwd }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to login');
+      }
+
+      // Store user data in localStorage
+      localStorage.setItem('token', data.session.access_token);
+      localStorage.setItem('user', JSON.stringify(result.user));
+
+      // Update context state
+      setAuthUser(result.user);
+
+      // Navigate based on role
+      if (result.user.role === 'operator') {
+        navigate('/operator');
+      } else {
+        navigate('/player');
+      }
+    } catch (err) {
+      console.error('Quick login error:', err);
+      setError(err.message || 'Failed to login. Please try again.');
+    } finally {
+      setLoading(false);
     }
-
-    setUsername(quickUsername);
-    setPassword('');
-
-    // Auto-submit after setting username/password
-    setTimeout(() => {
-      handleLogin({ preventDefault: () => {} });
-    }, 100);
   };
 
   return (
@@ -113,32 +197,33 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-blue-200 mb-2">Username</label>
+              <label className="block text-sm font-medium text-blue-200 mb-2">Email</label>
               <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 bg-white bg-opacity-10 border border-white border-opacity-30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-                placeholder="Enter your username"
+                placeholder="Enter your email"
                 disabled={loading}
+                required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-blue-200 mb-2">Password (Optional)</label>
+              <label className="block text-sm font-medium text-blue-200 mb-2">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3 bg-white bg-opacity-10 border border-white border-opacity-30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-                placeholder="Enter password (optional)"
+                placeholder="Enter password"
                 disabled={loading}
               />
             </div>
 
             <button
               type="submit"
-              disabled={loading || !username.trim()}
+              disabled={loading}
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 px-6 rounded-lg hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (

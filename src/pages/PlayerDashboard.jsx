@@ -236,7 +236,7 @@ export default function PlayerDashboard() {
   const onlinePlayers = onlineUsers.filter(user => user.role === 'player');
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
@@ -248,7 +248,7 @@ export default function PlayerDashboard() {
           </div>
           <button
             onClick={logout}
-            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition"
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition duration-200"
           >
             Logout
           </button>
@@ -406,7 +406,7 @@ export default function PlayerDashboard() {
                 <button
                   onClick={handleSubmitTariffs}
                   disabled={loading || timeLeft === 0}
-                  className="bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Submitting...' : `Submit Tariffs for Round ${currentRound}`}
                 </button>
@@ -540,7 +540,7 @@ export default function PlayerDashboard() {
               <button
                 type="submit"
                 disabled={chatType === 'private' && !recipientCountry}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition disabled:opacity-50"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition duration-200 disabled:opacity-50"
               >
                 Send
               </button>
