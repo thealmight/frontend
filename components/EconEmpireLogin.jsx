@@ -30,7 +30,7 @@ export default function EconEmpireLogin() {
 
       <div className="z-10 bg-white bg-opacity-10 backdrop-blur-md rounded-xl p-6 w-full max-w-md shadow-2xl border border-white border-opacity-20">
         <h3 className="text-2xl font-bold mb-4 text-center">Enter the Empire</h3>
-        <p className="text-red-300 text-sm mb-2">Unexpected end of JSON input</p>
+      
 
         <input
           type="text"
