@@ -8,7 +8,7 @@ import {
 } from 'react';
 import { io } from 'socket.io-client';
 import { supabase } from '../lib/supabaseClient';
-// const socket = io(import.meta.env.VITE_SOCKET_URL);
+
 const GameContext = createContext();
 
 export const GameProvider = ({ children }) => {
@@ -54,6 +54,7 @@ export const GameProvider = ({ children }) => {
     
     return assignedCountry;
   }, [onlineUsers, countries]);
+  
   const [products] = useState(['Steel', 'Grain', 'Oil', 'Electronics', 'Textiles']);
   const [production, setProduction] = useState([]);
   const [demand, setDemand] = useState([]);
@@ -66,6 +67,19 @@ export const GameProvider = ({ children }) => {
   // Socket state
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
+
+  // Initialize authUser from localStorage on mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        setAuthUser(user);
+      } catch (e) {
+        console.error('Error parsing stored user:', e);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const initSocket = async () => {
@@ -104,9 +118,7 @@ export const GameProvider = ({ children }) => {
             if (assignedCountry) {
               update.country = assignedCountry;
               // Emit event to notify other clients of country assignment
-              if (socket) {
-                socket.emit('countryAssigned', { userId: update.userId, country: assignedCountry });
-              }
+              newSocket.emit('countryAssigned', { userId: update.userId, country: assignedCountry });
             }
           }
           return update.isOnline ? [...filtered, update] : filtered;
@@ -270,15 +282,44 @@ export const GameProvider = ({ children }) => {
     const { data, error } = await supabase
       .from('games')
       .insert([{ 
-        totalRounds,
-        production,
-        demand,
-        tariffRates: [] // Initialize with empty tariff rates
+        total_rounds: totalRounds,
+        status: 'waiting',
+        current_round: 0
       }])
       .select()
       .single();
 
     if (error) throw error;
+
+    // Create production data
+    const productionData = production.map(p => ({
+      game_id: data.id,
+      country: p.country,
+      product: p.product,
+      quantity: p.quantity
+    }));
+    
+    // Create demand data
+    const demandData = demand.map(d => ({
+      game_id: data.id,
+      country: d.country,
+      product: d.product,
+      quantity: d.quantity
+    }));
+
+    // Insert production data
+    const { error: productionError } = await supabase
+      .from('production')
+      .insert(productionData);
+    
+    if (productionError) throw productionError;
+
+    // Insert demand data
+    const { error: demandError } = await supabase
+      .from('demand')
+      .insert(demandData);
+    
+    if (demandError) throw demandError;
 
     setGameId(data.id);
     setRounds(totalRounds);
@@ -297,7 +338,7 @@ export const GameProvider = ({ children }) => {
 
     const { error } = await supabase
       .from('games')
-      .update({ status: 'active', currentRound: 1 })
+      .update({ status: 'active', current_round: 1 })
       .eq('id', gameId);
 
     if (error) throw error;
@@ -322,7 +363,7 @@ export const GameProvider = ({ children }) => {
 
     const { error } = await supabase
       .from('games')
-      .update({ currentRound: nextRound })
+      .update({ current_round: nextRound })
       .eq('id', gameId);
 
     if (error) throw error;
@@ -342,7 +383,7 @@ export const GameProvider = ({ children }) => {
 
     const { error } = await supabase
       .from('games')
-      .update({ status: 'ended', isEnded: true })
+      .update({ status: 'ended' })
       .eq('id', gameId);
 
     if (error) throw error;
@@ -361,16 +402,16 @@ export const GameProvider = ({ children }) => {
     if (!gameId || !authUser) throw new Error('Missing game or user');
 
     const payload = tariffChanges.map((change) => ({
-      gameId,
-      roundNumber: currentRound,
+      game_id: gameId,
+      round_number: currentRound,
       product: change.product,
-      fromCountry: authUser.country,
-      toCountry: change.toCountry,
+      from_country: authUser.country,
+      to_country: change.toCountry,
       rate: change.rate,
-      updatedBy: authUser.id,
+      submitted_by: authUser.id,
     }));
 
-    const { error } = await supabase.from('tariffs').insert(payload);
+    const { error } = await supabase.from('tariff_rates').insert(payload);
 
     if (error) throw error;
 
@@ -385,21 +426,41 @@ export const GameProvider = ({ children }) => {
     try {
       let data;
       if (authUser?.role === 'operator') {
+        // For operator, get all game data
         const res = await supabase
           .from('games')
-          .select('production, demand, tariffRates')
+          .select('*, production(*), demand(*), tariff_rates(*)')
           .eq('id', gameId)
           .single();
         data = res.data;
       } else {
-        const res = await supabase
-          .rpc('get_player_data', { game_id: gameId, round: currentRound });
-        data = res.data;
+        // For player, get only their data
+        const productionRes = await supabase
+          .from('production')
+          .select('*')
+          .eq('game_id', gameId);
+        
+        const demandRes = await supabase
+          .from('demand')
+          .select('*')
+          .eq('game_id', gameId)
+          .eq('country', authUser.country);
+        
+        const tariffRes = await supabase
+          .from('tariff_rates')
+          .select('*')
+          .eq('game_id', gameId);
+        
+        data = {
+          production: productionRes.data || [],
+          demand: demandRes.data || [],
+          tariff_rates: tariffRes.data || []
+        };
       }
 
-      setProduction(data?.production || []);
-      setDemand(data?.demand || []);
-      setTariffRates(data?.tariffRates || []);
+      setProduction(data.production || []);
+      setDemand(data.demand || []);
+      setTariffRates(data.tariff_rates || []);
       setCurrentRound(parseInt(localStorage.getItem('currentRound')) || 0);
     } catch (error) {
       console.error('Load game data error:', error);
@@ -438,10 +499,12 @@ export const GameProvider = ({ children }) => {
 
   // Generic API call function
   const apiCall = async (endpoint, options = {}) => {
+    const token = localStorage.getItem('token');
     const url = `${import.meta.env.VITE_API_URL || ''}${endpoint}`;
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
         ...options.headers,
       },
       ...options,
