@@ -104,7 +104,9 @@ export const GameProvider = ({ children }) => {
             if (assignedCountry) {
               update.country = assignedCountry;
               // Emit event to notify other clients of country assignment
-              socket.emit('countryAssigned', { userId: update.userId, country: assignedCountry });
+              if (socket) {
+                socket.emit('countryAssigned', { userId: update.userId, country: assignedCountry });
+              }
             }
           }
           return update.isOnline ? [...filtered, update] : filtered;
@@ -434,6 +436,24 @@ export const GameProvider = ({ children }) => {
     setOnlineUsers([]);
   };
 
+  // Generic API call function
+  const apiCall = async (endpoint, options = {}) => {
+    const url = `${import.meta.env.VITE_API_URL || ''}${endpoint}`;
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+    }
+    
+    return response.json();
+  };
+
   // Provide all state & actions via context
   const value = {
     // Game state
@@ -495,6 +515,9 @@ export const GameProvider = ({ children }) => {
     
     // Country assignment
     assignCountryToPlayer,
+    
+    // API call function
+    apiCall,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
