@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { GameProvider } from './context/GameContext';
-import EconEmpireLogin from './components/EconEmpireLogin';
+import EconEmpireLogin from '../components/EconEmpireLogin';
 import OperatorDashboard from './pages/OperatorDashboard';
 import PlayerDashboard from './pages/PlayerDashboard';
 
