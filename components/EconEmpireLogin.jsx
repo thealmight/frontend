@@ -85,16 +85,28 @@ export default function EconEmpireLogin() {
           },
         });
 
-        if (signUpError) throw signUpError;
+        if (signUpError) {
+          // If sign up fails, try to sign in again (user might already exist)
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password: pwd,
+          });
 
-        // Try to sign in again
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password: pwd,
-        });
+          if (signInError) throw signInError;
+          data.session = signInData.session;
+        } else {
+          // Wait a bit for the user to be created in the database
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Try to sign in again
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password: pwd,
+          });
 
-        if (signInError) throw signInError;
-        data.session = signInData.session;
+          if (signInError) throw signInError;
+          data.session = signInData.session;
+        }
       }
 
       // Call our backend login endpoint to create/get user profile
@@ -155,16 +167,28 @@ export default function EconEmpireLogin() {
           },
         });
 
-        if (signUpError) throw signUpError;
+        if (signUpError) {
+          // If sign up fails, try to sign in again (user might already exist)
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password: pwd,
+          });
 
-        // Try to sign in again
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password: pwd,
-        });
+          if (signInError) throw signInError;
+          data.session = signInData.session;
+        } else {
+          // Wait a bit for the user to be created in the database
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Try to sign in again
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password: pwd,
+          });
 
-        if (signInError) throw signInError;
-        data.session = signInData.session;
+          if (signInError) throw signInError;
+          data.session = signInData.session;
+        }
       }
 
       // Call our backend login endpoint to create/get user profile
