@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
 import { useGame } from '../context/GameContext';
 
 export default function LoginPage() {
@@ -132,8 +131,8 @@ export default function LoginPage() {
             Master production, demand, and tariffs in real-time multiplayer gameplay
           </p>
 {/* Demo Note */}
-          <div className="bg-yellow-500 bg-opacity-20 border border-yellow-400 text-yellow-100 px-4 py-3 rounded-lg mb-6 text-sm">
-            <p>💡 Note: For demo purposes, the system automatically converts usernames to emails (username@example.com) for authentication.</p>
+          <div className="bg-green-500 bg-opacity-20 border border-green-400 text-green-100 px-4 py-3 rounded-lg mb-6 text-sm">
+            <p>✅ The system now uses direct username/password authentication without converting to email format.</p>
           </div>
         </div>
 

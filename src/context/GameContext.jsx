@@ -7,7 +7,13 @@ import {
   useCallback,
 } from 'react';
 import { io } from 'socket.io-client';
-import { supabase } from '../lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 const GameContext = createContext();
 
@@ -84,16 +90,9 @@ export const GameProvider = ({ children }) => {
   // Refresh session on mount
   useEffect(() => {
     const refreshSession = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error('Error refreshing session:', error);
-        return;
-      }
-      
-      if (data.session) {
-        // Update token in localStorage
-        localStorage.setItem('token', data.session.access_token);
-      }
+      // With our new auth system, we don't need to refresh sessions
+      // The token is self-contained and doesn't expire
+      return;
     };
     
     refreshSession();
@@ -101,11 +100,11 @@ export const GameProvider = ({ children }) => {
 
   useEffect(() => {
     const initSocket = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session || !authUser) {
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      const user = localStorage.getItem('user');
+      
+      if (!token || !user) {
         if (socket) socket.disconnect();
         setSocket(null);
         setIsConnected(false);
@@ -115,7 +114,7 @@ export const GameProvider = ({ children }) => {
       if (socket) socket.disconnect();
 
       const newSocket = io(import.meta.env.VITE_SOCKET_URL, {
-        auth: { token: session.access_token },
+        auth: { token: token },
         withCredentials: true,
         autoConnect: true,
         transports: ['websocket'],
@@ -486,7 +485,21 @@ export const GameProvider = ({ children }) => {
   }, [gameId, currentRound, authUser]);
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    // Call our backend logout endpoint
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        await fetch(`${import.meta.env.VITE_API_URL}/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Logout API error:', error);
+    }
 
     localStorage.removeItem('token');
     localStorage.removeItem('user');

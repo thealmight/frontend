@@ -5,7 +5,7 @@ import OperatorDashboard from './pages/OperatorDashboard';
 import PlayerDashboard from './pages/PlayerDashboard';
 
 function App() {
-  console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+  console.log('API URL:', import.meta.env.VITE_API_URL);
   console.log('Socket URL:', import.meta.env.VITE_SOCKET_URL);
 
   return (
