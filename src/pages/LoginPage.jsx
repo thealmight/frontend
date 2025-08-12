@@ -131,6 +131,10 @@ export default function LoginPage() {
           <p className="text-sm text-blue-300">
             Master production, demand, and tariffs in real-time multiplayer gameplay
           </p>
+{/* Demo Note */}
+          <div className="bg-yellow-500 bg-opacity-20 border border-yellow-400 text-yellow-100 px-4 py-3 rounded-lg mb-6 text-sm">
+            <p>💡 Note: For demo purposes, the system automatically converts usernames to emails (username@example.com) for authentication.</p>
+          </div>
         </div>
 
         {/* Login Form */}
