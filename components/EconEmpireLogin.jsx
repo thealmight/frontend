@@ -35,7 +35,7 @@ export default function EconEmpireLogin() {
         <input
           type="text"
           placeholder="Username"
-          defaultValue="pavan"
+          defaultValue=""
           className="w-full mb-3 px-4 py-2 rounded bg-white bg-opacity-20 text-white placeholder-white focus:outline-none focus:ring-2 focus:ring-empirePink"
         />
         <input
