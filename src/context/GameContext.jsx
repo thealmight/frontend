@@ -27,6 +27,33 @@ export const GameProvider = ({ children }) => {
 
   // Game data
   const [countries] = useState(['USA', 'China', 'Germany', 'Japan', 'India']);
+  
+  // Function to assign a country to a player
+  const assignCountryToPlayer = useCallback((playerId) => {
+    // Find the player in onlineUsers
+    const player = onlineUsers.find(user => user.id === playerId);
+    if (!player) return null;
+    
+    // If player already has a country assigned, return it
+    if (player.country) return player.country;
+    
+    // Find countries that are not yet assigned
+    const assignedCountries = onlineUsers
+      .filter(user => user.country)
+      .map(user => user.country);
+    
+    const availableCountries = countries.filter(country =>
+      !assignedCountries.includes(country)
+    );
+    
+    // If no countries are available, return null
+    if (availableCountries.length === 0) return null;
+    
+    // Assign a random available country
+    const assignedCountry = availableCountries[Math.floor(Math.random() * availableCountries.length)];
+    
+    return assignedCountry;
+  }, [onlineUsers, countries]);
   const [products] = useState(['Steel', 'Grain', 'Oil', 'Electronics', 'Textiles']);
   const [production, setProduction] = useState([]);
   const [demand, setDemand] = useState([]);
@@ -71,8 +98,33 @@ export const GameProvider = ({ children }) => {
       newSocket.on('userStatusUpdate', (update) => {
         setOnlineUsers((prev) => {
           const filtered = prev.filter((u) => u.id !== update.userId);
+          // If user is coming online and doesn't have a country assigned, assign one
+          if (update.isOnline && !update.country) {
+            const assignedCountry = assignCountryToPlayer(update.userId);
+            if (assignedCountry) {
+              update.country = assignedCountry;
+              // Emit event to notify other clients of country assignment
+              socket.emit('countryAssigned', { userId: update.userId, country: assignedCountry });
+            }
+          }
           return update.isOnline ? [...filtered, update] : filtered;
         });
+      });
+      
+      // Handle request for country assignment
+      newSocket.on('requestCountryAssignment', (data) => {
+        const assignedCountry = assignCountryToPlayer(data.userId);
+        if (assignedCountry) {
+          // Emit event to notify client of country assignment
+          newSocket.emit('countryAssigned', { userId: data.userId, country: assignedCountry });
+          
+          // Update onlineUsers to reflect the country assignment
+          setOnlineUsers((prev) =>
+            prev.map(user =>
+              user.id === data.userId ? { ...user, country: assignedCountry } : user
+            )
+          );
+        }
       });
 
       newSocket.on('gameStateChanged', (data) => {
@@ -138,10 +190,89 @@ export const GameProvider = ({ children }) => {
     return () => socket?.disconnect();
   }, [authUser]);
 
+  // Helper function to generate production and demand data with constraints
+  const generateProductionDemandData = () => {
+    const countries = ['USA', 'China', 'Germany', 'Japan', 'India'];
+    const products = ['Steel', 'Grain', 'Oil', 'Electronics', 'Textiles'];
+    
+    // Initialize production and demand arrays
+    const production = [];
+    const demand = [];
+    
+    // Track which products each country produces
+    const countryProductions = {};
+    countries.forEach(country => {
+      countryProductions[country] = [];
+    });
+    
+    // Assign 2-3 products to each country for production
+    products.forEach(product => {
+      // Shuffle countries to randomize assignment
+      const shuffledCountries = [...countries].sort(() => Math.random() - 0.5);
+      
+      // Each product is produced by 2-3 countries (to ensure total production can reach 100)
+      const numProducers = Math.floor(Math.random() * 2) + 2; // 2 or 3
+      const producingCountries = shuffledCountries.slice(0, numProducers);
+      
+      // Distribute 100 units of production among producing countries
+      let remainingProduction = 100;
+      producingCountries.forEach((country, index) => {
+        // For the last country, assign all remaining production
+        const quantity = (index === producingCountries.length - 1) 
+          ? remainingProduction 
+          : Math.floor(Math.random() * (remainingProduction - (producingCountries.length - index - 1))) + 1;
+        
+        production.push({
+          country,
+          product,
+          quantity
+        });
+        
+        countryProductions[country].push(product);
+        remainingProduction -= quantity;
+      });
+    });
+    
+    // Assign demand for each product to countries that don't produce it
+    products.forEach(product => {
+      // Find countries that don't produce this product
+      const nonProducingCountries = countries.filter(country => 
+        !countryProductions[country].includes(product)
+      );
+      
+      // Distribute 100 units of demand among non-producing countries
+      let remainingDemand = 100;
+      nonProducingCountries.forEach((country, index) => {
+        // For the last country, assign all remaining demand
+        const quantity = (index === nonProducingCountries.length - 1) 
+          ? remainingDemand 
+          : Math.floor(Math.random() * (remainingDemand - (nonProducingCountries.length - index - 1))) + 1;
+        
+        demand.push({
+          country,
+          product,
+          quantity
+        });
+        
+        remainingDemand -= quantity;
+      });
+    });
+    
+    return { production, demand };
+  };
+
   const createGame = async (totalRounds = 5) => {
+    // Generate production and demand data with constraints
+    const { production, demand } = generateProductionDemandData();
+    
     const { data, error } = await supabase
       .from('games')
-      .insert([{ totalRounds }])
+      .insert([{ 
+        totalRounds,
+        production,
+        demand,
+        tariffRates: [] // Initialize with empty tariff rates
+      }])
       .select()
       .single();
 
@@ -153,6 +284,8 @@ export const GameProvider = ({ children }) => {
     setCurrentRound(0);
     setGameEnded(false);
     setRoundsFinalized(false);
+    setProduction(production);
+    setDemand(demand);
 
     return data;
   };
@@ -276,7 +409,7 @@ export const GameProvider = ({ children }) => {
 
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-       localStorage.removeItem('gameId');
+    localStorage.removeItem('gameId');
     localStorage.removeItem('currentRound');
 
     if (socket) {
@@ -359,6 +492,9 @@ export const GameProvider = ({ children }) => {
     submitTariffs,
     loadGameData,
     logout,
+    
+    // Country assignment
+    assignCountryToPlayer,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

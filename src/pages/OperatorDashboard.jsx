@@ -88,6 +88,17 @@ export default function OperatorDashboard() {
   // ⏱️ Countdown timer
   useCountdown(timeLeft, setTimeLeft, gameStatus === 'active' && !isGameEnded);
 
+  // 🔄 Auto transition to next round when timer expires
+  useEffect(() => {
+    if (gameStatus === 'active' && !isGameEnded && timeLeft === 0 && currentRound < rounds) {
+      const timer = setTimeout(() => {
+        handleNextRound();
+      }, 1000); // Wait 1 second before starting next round
+
+      return () => clearTimeout(timer);
+    }
+  }, [timeLeft, gameStatus, isGameEnded, currentRound, rounds, handleNextRound]);
+
   // 🕒 Format time
   const formatTime = (seconds) => {
     const min = Math.floor(seconds / 60);
@@ -109,10 +120,16 @@ export default function OperatorDashboard() {
   };
 
   const handleStartGame = async () => {
-    if (onlinePlayers.length < 5) {
-      setError(`Need 5 players online, currently have ${onlinePlayers.length}`);
+    // Check that all 5 countries have players assigned
+    const countriesWithPlayers = countries.filter(country =>
+      onlinePlayers.some(player => player.country === country)
+    );
+    
+    if (countriesWithPlayers.length < 5) {
+      setError(`Need players for all 5 countries. Currently missing: ${countries.filter(c => !countriesWithPlayers.includes(c)).join(', ')}`);
       return;
     }
+    
     setLoading(true);
     setError('');
     try {

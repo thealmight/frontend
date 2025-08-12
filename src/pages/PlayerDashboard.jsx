@@ -31,7 +31,8 @@ export default function PlayerDashboard() {
     apiCall,
     setProduction,
     setDemand,
-    setTariffRates
+    setTariffRates,
+    assignCountryToPlayer
   } = useGame();
 
   const [tariffInputs, setTariffInputs] = useState({});
@@ -54,6 +55,32 @@ export default function PlayerDashboard() {
       return;
     }
   }, [authUser, navigate]);
+  
+  // Assign country to player when they join
+  useEffect(() => {
+    if (authUser && !authUser.country && socket) {
+      // Emit event to request country assignment
+      socket.emit('requestCountryAssignment', { userId: authUser.id });
+    }
+  }, [authUser, socket]);
+  
+  // Listen for country assignment
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleCountryAssigned = (data) => {
+      if (data.userId === authUser?.id) {
+        // Update authUser with assigned country
+        setAuthUser(prev => ({ ...prev, country: data.country }));
+      }
+    };
+    
+    socket.on('countryAssigned', handleCountryAssigned);
+    
+    return () => {
+      socket.off('countryAssigned', handleCountryAssigned);
+    };
+  }, [socket, authUser?.id, setAuthUser]);
 
   // Subscribe to gameDataUpdated socket event safely
   useEffect(() => {
@@ -144,10 +171,21 @@ export default function PlayerDashboard() {
     Object.entries(tariffInputs).forEach(([key, value]) => {
       if (value !== '') {
         const [product, toCountry] = key.split('-');
+        // Validate that tariffs are between 0-100%
+        const rate = parseFloat(value);
+        if (rate < 0 || rate > 100) {
+          setError(`Tariff rates must be between 0-100%. Invalid rate: ${rate}%`);
+          return;
+        }
+        // Validate that a country cannot set tariffs for itself (should be 0%)
+        if (toCountry === authUser.country) {
+          setError(`Cannot set tariffs for your own country (${toCountry}). This should be 0%.`);
+          return;
+        }
         tariffChanges.push({
           product,
           toCountry,
-          rate: parseFloat(value)
+          rate
         });
       }
     });
@@ -162,19 +200,14 @@ export default function PlayerDashboard() {
     setSuccess('');
 
     try {
-      const result = await submitTariffs(tariffChanges);
-
-      const errors = result.results.filter(r => r.error);
-      const successes = result.results.filter(r => r.success);
-
-      if (errors.length > 0) {
-        setError(`Some tariffs failed: ${errors.map(e => e.error).join(', ')}`);
-      }
-
-      if (successes.length > 0) {
-        setSuccess(`Successfully updated ${successes.length} tariff rate(s)`);
-        await loadPlayerTariffStatus();
-      }
+      await submitTariffs(tariffChanges);
+      setSuccess(`Successfully updated ${tariffChanges.length} tariff rate(s)`);
+      // Reset inputs after successful submission
+      const newInputs = {};
+      Object.keys(tariffInputs).forEach(key => {
+        newInputs[key] = '';
+      });
+      setTariffInputs(newInputs);
     } catch (error) {
       setError(error.message);
     } finally {
@@ -210,7 +243,7 @@ export default function PlayerDashboard() {
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Player Dashboard</h1>
             <p className="text-gray-600">
-              Welcome, {authUser?.username} - Representing {playerCountry}
+              Welcome, {authUser?.username} - {playerCountry ? `Representing ${playerCountry}` : 'Assigning country...'}
             </p>
           </div>
           <button
