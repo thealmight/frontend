@@ -7,7 +7,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { setAuthUser } = useGame();
 
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -15,8 +15,8 @@ export default function LoginPage() {
   const handleLogin = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
 
-    if (!email.trim()) {
-      setError('Email is required');
+    if (!username.trim()) {
+      setError('Username is required');
       return;
     }
 
@@ -24,22 +24,13 @@ export default function LoginPage() {
     setError('');
 
     try {
-      // Attempt to sign in with Supabase
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-
-      // Call our backend login endpoint to create/get user profile
+      // Call our backend login endpoint with username and password
       const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${data.session.access_token}`,
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       });
 
       const result = await response.json();
@@ -49,7 +40,7 @@ export default function LoginPage() {
       }
 
       // Store user data in localStorage
-      localStorage.setItem('token', data.session.access_token);
+      localStorage.setItem('token', result.access_token);
       localStorage.setItem('user', JSON.stringify(result.user));
 
       // Update context state
@@ -75,65 +66,22 @@ export default function LoginPage() {
     setError('');
 
     try {
-      let email, pwd;
+      let username, pwd;
       if (userType === 'operator') {
-        email = 'pavan@example.com';
+        username = 'pavan';
         pwd = 'password123';
       } else {
-        email = `player${Math.floor(Math.random() * 10000)}@example.com`;
+        username = `player${Math.floor(Math.random() * 10000)}`;
         pwd = 'password123';
       }
 
-      // Attempt to sign in with Supabase
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password: pwd,
-      });
-
-      if (error) {
-        // If user doesn't exist, create them
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password: pwd,
-          options: {
-            data: {
-              username: userType === 'operator' ? 'pavan' : email.split('@')[0],
-            },
-          },
-        });
-
-        if (signUpError) {
-          // If sign up fails, try to sign in again (user might already exist)
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password: pwd,
-          });
-
-          if (signInError) throw signInError;
-          data.session = signInData.session;
-        } else {
-          // Wait a bit for the user to be created in the database
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Try to sign in again
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password: pwd,
-          });
-
-          if (signInError) throw signInError;
-          data.session = signInData.session;
-        }
-      }
-
-      // Call our backend login endpoint to create/get user profile
+      // Call our backend login endpoint with username and password
       const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${data.session.access_token}`,
         },
-        body: JSON.stringify({ email, password: pwd }),
+        body: JSON.stringify({ username, password: pwd }),
       });
 
       const result = await response.json();
@@ -143,7 +91,7 @@ export default function LoginPage() {
       }
 
       // Store user data in localStorage
-      localStorage.setItem('token', data.session.access_token);
+      localStorage.setItem('token', result.access_token);
       localStorage.setItem('user', JSON.stringify(result.user));
 
       // Update context state
@@ -197,13 +145,13 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-blue-200 mb-2">Email</label>
+              <label className="block text-sm font-medium text-blue-200 mb-2">Username</label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className="w-full px-4 py-3 bg-white bg-opacity-10 border border-white border-opacity-30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-                placeholder="Enter your email"
+                placeholder="Enter your username"
                 disabled={loading}
                 required
               />
