@@ -4,7 +4,7 @@ import { supabase } from '../src/lib/supabaseClient';
 
 export default function EconEmpireLogin() {
   const navigate = useNavigate();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -15,15 +15,10 @@ export default function EconEmpireLogin() {
     setError('');
 
     try {
-      // For demo purposes, we'll use a fixed email/password
-      // In a real application, you would use the username and password from the form
-      const email = 'pavan@example.com';
-      const pwd = 'password123';
-
       // Attempt to sign in with Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password: pwd,
+        password,
       });
 
       if (error) throw error;
@@ -33,8 +28,9 @@ export default function EconEmpireLogin() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${data.session.access_token}`,
         },
-        body: JSON.stringify({ email, password: pwd }),
+        body: JSON.stringify({ email, password }),
       });
 
       const result = await response.json();
@@ -44,7 +40,7 @@ export default function EconEmpireLogin() {
       }
 
       // Store user data in localStorage
-      localStorage.setItem('token', result.access_token);
+      localStorage.setItem('token', data.session.access_token);
       localStorage.setItem('user', JSON.stringify(result.user));
 
       // Redirect based on role
@@ -55,7 +51,7 @@ export default function EconEmpireLogin() {
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError(err.message || 'Failed to login');
+      setError(err.message || 'Failed to login. Please check your credentials and try again.');
     } finally {
       setLoading(false);
     }
@@ -67,6 +63,7 @@ export default function EconEmpireLogin() {
 
     try {
       // For demo purposes, we'll use a fixed email/password for operator
+      // In a real application, users would have their own accounts
       const email = 'pavan@example.com';
       const pwd = 'password123';
 
@@ -76,13 +73,36 @@ export default function EconEmpireLogin() {
         password: pwd,
       });
 
-      if (error) throw error;
+      if (error) {
+        // If user doesn't exist, create them
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password: pwd,
+          options: {
+            data: {
+              username: 'pavan',
+            },
+          },
+        });
+
+        if (signUpError) throw signUpError;
+
+        // Try to sign in again
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password: pwd,
+        });
+
+        if (signInError) throw signInError;
+        data.session = signInData.session;
+      }
 
       // Call our backend login endpoint to create/get user profile
       const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${data.session.access_token}`,
         },
         body: JSON.stringify({ email, password: pwd }),
       });
@@ -94,14 +114,14 @@ export default function EconEmpireLogin() {
       }
 
       // Store user data in localStorage
-      localStorage.setItem('token', result.access_token);
+      localStorage.setItem('token', data.session.access_token);
       localStorage.setItem('user', JSON.stringify(result.user));
 
       // Redirect to operator dashboard
       navigate('/operator');
     } catch (err) {
       console.error('Operator login error:', err);
-      setError(err.message || 'Failed to login as operator');
+      setError(err.message || 'Failed to login as operator. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -112,8 +132,9 @@ export default function EconEmpireLogin() {
     setError('');
 
     try {
-      // For demo purposes, we'll use a fixed email/password for player
-      const email = `player${Math.floor(Math.random() * 1000)}@example.com`;
+      // For demo purposes, we'll use a random email/password for player
+      // In a real application, users would have their own accounts
+      const email = `player${Math.floor(Math.random() * 10000)}@example.com`;
       const pwd = 'password123';
 
       // Attempt to sign in with Supabase
@@ -122,13 +143,36 @@ export default function EconEmpireLogin() {
         password: pwd,
       });
 
-      if (error) throw error;
+      if (error) {
+        // If user doesn't exist, create them
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password: pwd,
+          options: {
+            data: {
+              username: email.split('@')[0],
+            },
+          },
+        });
+
+        if (signUpError) throw signUpError;
+
+        // Try to sign in again
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password: pwd,
+        });
+
+        if (signInError) throw signInError;
+        data.session = signInData.session;
+      }
 
       // Call our backend login endpoint to create/get user profile
       const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${data.session.access_token}`,
         },
         body: JSON.stringify({ email, password: pwd }),
       });
@@ -140,14 +184,14 @@ export default function EconEmpireLogin() {
       }
 
       // Store user data in localStorage
-      localStorage.setItem('token', result.access_token);
+      localStorage.setItem('token', data.session.access_token);
       localStorage.setItem('user', JSON.stringify(result.user));
 
       // Redirect to player dashboard
       navigate('/player');
     } catch (err) {
       console.error('Player login error:', err);
-      setError(err.message || 'Failed to login as player');
+      setError(err.message || 'Failed to login as player. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -180,18 +224,20 @@ export default function EconEmpireLogin() {
 
         <form onSubmit={handleLogin}>
           <input
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             className="w-full mb-3 px-4 py-2 rounded bg-white bg-opacity-20 text-white placeholder-white focus:outline-none focus:ring-2 focus:ring-empirePink"
+            required
           />
           <input
             type="password"
-            placeholder="Enter password (optional)"
+            placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full mb-4 px-4 py-2 rounded bg-white bg-opacity-20 text-white placeholder-white focus:outline-none focus:ring-2 focus:ring-empirePink"
+            required
           />
           <button 
             type="submit"

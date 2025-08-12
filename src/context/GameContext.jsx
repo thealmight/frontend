@@ -81,6 +81,24 @@ export const GameProvider = ({ children }) => {
     }
   }, []);
 
+  // Refresh session on mount
+  useEffect(() => {
+    const refreshSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('Error refreshing session:', error);
+        return;
+      }
+      
+      if (data.session) {
+        // Update token in localStorage
+        localStorage.setItem('token', data.session.access_token);
+      }
+    };
+    
+    refreshSession();
+  }, []);
+
   useEffect(() => {
     const initSocket = async () => {
       const {
