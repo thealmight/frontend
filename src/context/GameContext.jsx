@@ -8,7 +8,7 @@ import {
 } from 'react';
 import { io } from 'socket.io-client';
 import { supabase } from '../lib/supabaseClient';
-
+// const socket = io(import.meta.env.VITE_SOCKET_URL);
 const GameContext = createContext();
 
 export const GameProvider = ({ children }) => {
